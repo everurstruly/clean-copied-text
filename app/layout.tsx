@@ -3,8 +3,8 @@ import { ThemeProvider } from 'next-themes';
 import './globals.css'; // Global styles
 
 export const metadata: Metadata = {
-  title: 'AI Text Cleaner',
-  description: 'AI-powered text sanitization tool',
+  title: 'Clean Copied Text',
+  description: 'Ttext sanitization tool',
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {

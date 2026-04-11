@@ -1,12 +1,12 @@
-# AI Text Cleaner
+# Text Cleaner
 
-AI Text Cleaner is a smart, AI-powered utility designed to instantly clean, format, and standardize messy text. Whether you're dealing with OCR errors, messy copy-pastes from PDFs, or inconsistent formatting, AI Text Cleaner uses advanced language models to intelligently restore your text to a pristine state.
+Text Cleaner is a smart utility designed to instantly clean, format, and standardize messy text. Whether you're dealing with OCR errors, messy copy-pastes from PDFs, or inconsistent formatting, Text Cleaner uses robust string manipulation and regex rules to intelligently restore your text to a pristine state.
 
 ## Product Vision
-Our goal is to provide a frictionless, keyboard-first experience for content creators, editors, and developers who frequently wrangle unstructured text. We believe that cleaning text shouldn't require complex regular expressions or manual line-by-line editing.
+Our goal is to provide a frictionless, keyboard-first experience for content creators, editors, and developers who frequently wrangle unstructured text. We believe that cleaning text shouldn't require complex manual line-by-line editing.
 
 ## Key Features
-- **Intelligent Cleaning**: Powered by the Gemini API to understand context and fix spacing, punctuation, and formatting intelligently.
+- **Intelligent Cleaning**: Fast, deterministic rules to fix spacing, punctuation, and formatting instantly.
 - **Customizable Rules**: Toggle specific sanitization rules like removing hidden characters, stripping links, or removing emojis to suit your exact needs.
 - **Real-time Diffing**: Instantly see exactly what changed between your original text and the cleaned output with a built-in diff viewer.
 - **Multiple Export Formats**: Export your cleaned text as Markdown, Rich Text (HTML), or Plain Text.

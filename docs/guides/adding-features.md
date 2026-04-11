@@ -1,10 +1,10 @@
 # Adding New Features
 
-This guide outlines the process for adding new cleaning rules or features to the AI Text Cleaner.
+This guide outlines the process for adding new cleaning rules or features to the Text Cleaner.
 
 ## Adding a New Cleaning Rule
 
-Adding a new rule involves updating the UI state, adding a toggle switch, and updating the AI prompt logic.
+Adding a new rule involves updating the UI state, adding a toggle switch, and updating the text processing logic.
 
 ### 1. Update the State Interface
 In `app/page.tsx`, locate the `options` state and add your new rule:
@@ -36,19 +36,20 @@ In the `SidebarContent` component within `app/page.tsx`, add a new toggle switch
 </label>
 ```
 
-### 3. Update the AI Prompt
-In `lib/cleaner.ts`, update the prompt generation logic to instruct the AI to apply your new rule when enabled:
+### 3. Update the Processing Logic
+In `lib/cleaner.ts`, update the string manipulation logic to apply your new rule when enabled:
 ```typescript
 export async function cleanText(text: string, options: CleaningOptions) {
-  const instructions = [];
+  let result = text;
   
-  // ... existing instructions ...
+  // ... existing logic ...
 
   if (options.removeNumbers) {
-    instructions.push("- Remove all numerical digits from the text.");
+    result = result.replace(/[0-9]/g, '');
   }
 
   // ...
+  return result;
 }
 ```
 
@@ -68,5 +69,5 @@ const getPendingChanges = () => {
 If you want to add a new output format (e.g., JSON), you will need to:
 1. Update the `format` type in the `options` state.
 2. Add the format to the `Output Format` radio group in the UI.
-3. Update `lib/cleaner.ts` to instruct the AI to output in the requested format.
+3. Update `lib/cleaner.ts` to format the output accordingly.
 4. Update the `handleCopy` and `handleDownload` functions to support the new MIME type or file extension.
