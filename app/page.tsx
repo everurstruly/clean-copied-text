@@ -60,6 +60,7 @@ export default function Page() {
     fixFormatting: true,
     removeLinks: false,
     removeEmojis: false,
+    customRegex: '',
     format: 'markdown' as 'markdown' | 'html' | 'plain',
   });
 
@@ -180,6 +181,9 @@ export default function Page() {
     }
     if (options.removeEmojis !== lastCleanedOptions.removeEmojis) {
       changes.push(`Remove Emojis ${options.removeEmojis ? 'enabled' : 'disabled'}`);
+    }
+    if (options.customRegex !== lastCleanedOptions.customRegex) {
+      changes.push(`Custom Regex changed`);
     }
     return changes;
   };
@@ -303,6 +307,21 @@ export default function Page() {
               <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></div>
             </div>
           </label>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Custom Regex</h3>
+        <div className="bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm p-4">
+          <p className="text-sm font-medium text-neutral-900 dark:text-neutral-200 mb-2">Regex Pattern</p>
+          <input
+            type="text"
+            placeholder="e.g. \d+ to remove numbers"
+            value={options.customRegex}
+            onChange={(e) => setOptions({ ...options, customRegex: e.target.value })}
+            className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono"
+          />
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">Matches will be removed from the text.</p>
         </div>
       </div>
 
@@ -521,6 +540,7 @@ export default function Page() {
                               {options.fixFormatting && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Fix Formatting</span>}
                               {options.removeLinks && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove Links</span>}
                               {options.removeEmojis && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove Emojis</span>}
+                              {options.customRegex && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Custom Regex</span>}
                             </>
                           ) : (
                             pendingChanges.map((change, i) => (

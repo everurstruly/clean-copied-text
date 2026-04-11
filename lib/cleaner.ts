@@ -8,6 +8,7 @@ export async function cleanText(
     fixFormatting: boolean;
     removeLinks: boolean;
     removeEmojis: boolean;
+    customRegex?: string;
     format: 'markdown' | 'html' | 'plain';
   }
 ): Promise<string> {
@@ -15,6 +16,16 @@ export async function cleanText(
   await new Promise(resolve => setTimeout(resolve, 400));
 
   let result = text;
+
+  if (options.customRegex && options.customRegex.trim() !== '') {
+    try {
+      const regex = new RegExp(options.customRegex, 'g');
+      result = result.replace(regex, '');
+    } catch (e) {
+      console.error("Invalid custom regex:", e);
+      // Ignore invalid regex and continue
+    }
+  }
 
   if (options.removeHiddenChars) {
     // Remove zero-width spaces, BOM, and other non-printable characters
