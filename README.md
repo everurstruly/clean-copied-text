@@ -1,19 +1,20 @@
-# Clean Copied Text
+# Text Cleaner
 
-Website: [Add live link here](#)
+Text Cleaner is a smart utility designed to instantly clean, format, and standardize messy text. Whether you're dealing with OCR errors, messy copy-pastes from PDFs, or inconsistent formatting, Text Cleaner uses robust string manipulation and regex rules to intelligently restore your text to a pristine state.
 
-Clean Copied Text is a web app for cleaning up badly copied text.
+## Product Vision
+Our goal is to provide a frictionless, keyboard-first experience for content creators, editors, and developers who frequently wrangle unstructured text. We believe that cleaning text shouldn't require complex manual line-by-line editing.
 
-It was originally built to fix the annoying formatting issues that happen when text is copied from AI platforms, where line breaks, spacing, list structure, and other formatting details often get messed up. Over time, the project became useful for more than that and can also help clean text copied from PDFs, websites, documents, and other messy sources.
+## Key Features
+- **Intelligent Cleaning**: Fast, deterministic rules to fix spacing, punctuation, and formatting instantly.
+- **Customizable Rules**: Toggle specific sanitization rules like removing hidden characters, stripping links, or removing emojis to suit your exact needs.
+- **Real-time Diffing**: Instantly see exactly what changed between your original text and the cleaned output with a built-in diff viewer.
+- **Multiple Export Formats**: Export your cleaned text as Markdown, Rich Text (HTML), or Plain Text.
+- **Keyboard-First Design**: Fully navigable via keyboard shortcuts for power users (e.g., `Cmd+Enter` to clean, `Cmd+Shift+C` to copy).
 
-The app focuses on making copied text easier to reuse, edit, and export in a cleaner form without needing manual fixes line by line.
+## Documentation
+For developers looking to contribute, understand the architecture, or run the project locally, please refer to our documentation:
 
-## What this repository contains
-
-This repository contains the website code for Clean Copied Text, including the interface and the text processing logic that powers the tool.
-
-## Purpose
-
-The purpose of the project is simple: make copied text usable again.
-
-Whether the source is an AI chat, a PDF, or another badly formatted input, Clean Copied Text helps turn it into something more structured, readable, and easier to work with.
+- **[System Architecture](./docs/system/architecture.md)**: Overview of the tech stack, component structure, and data flow.
+- **[Local Development Guide](./docs/guides/development.md)**: Instructions for setting up the project locally.
+- **[Adding New Features](./docs/guides/adding-features.md)**: A step-by-step guide on how to add new cleaning rules and extend the application.
