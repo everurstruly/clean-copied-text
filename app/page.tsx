@@ -335,7 +335,7 @@ export default function Page() {
 
       <div className="flex-1 overflow-y-auto min-h-0">
         {/* Output Format Section */}
-        <div className="p-5 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="p-5 border-b border-neutral-200 dark:border-neutral-800 sticky top-0 z-10 bg-neutral-50 dark:bg-[#0a0a0a]">
           <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">Output Format</h3>
           <div className="grid grid-cols-3 gap-2">
             {[
@@ -536,7 +536,7 @@ export default function Page() {
               <div className="absolute inset-0 flex flex-col">
                 <div className="bg-neutral-50/80 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 px-3 py-2 sm:px-4 sm:py-3 flex justify-between items-center shrink-0 h-12 sm:h-14">
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Cleaned Result</span>
+                    <span className={`text-sm font-medium text-neutral-700 dark:text-neutral-300 ${outputText ? 'hidden sm:inline' : ''}`}>Cleaned Result</span>
                     
                     {outputText && (
                       <div className="flex bg-neutral-200/50 dark:bg-neutral-800 rounded-md p-0.5">
