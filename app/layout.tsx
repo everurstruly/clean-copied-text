@@ -3,8 +3,8 @@ import { ThemeProvider } from 'next-themes';
 import './globals.css'; // Global styles
 
 export const metadata: Metadata = {
-  title: 'Clean Copied Text',
-  description: 'Ttext sanitization tool',
+  title: 'Clean Copy',
+  description: 'Text sanitization tool',
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {

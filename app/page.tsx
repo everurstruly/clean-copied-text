@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings2, Sparkles, Copy, Check, X, FileText, Code, AlignLeft, Moon, Sun, RefreshCw, GripVertical, GripHorizontal, ChevronsUpDown, Download, Keyboard, Command, ClipboardPaste, Undo2, Redo2 } from 'lucide-react';
+import { Settings2, Sparkles, Copy, Check, X, FileText, Code, AlignLeft, Moon, Sun, RefreshCw, GripVertical, GripHorizontal, ChevronsUpDown, Download, Keyboard, Command, ClipboardPaste, Undo2, Redo2, CircleHelp } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import Link from 'next/link';
 import { cleanText } from '@/lib/cleaner';
 import { diffWordsWithSpace, Change } from 'diff';
 import { Panel, Group, Separator, PanelImperativeHandle } from 'react-resizable-panels';
@@ -320,16 +321,25 @@ export default function Page() {
           <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
-          <h1 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Text Cleaner</h1>
+          <h1 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Clean Copy</h1>
         </div>
         {mounted && (
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-1.5 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors"
-            aria-label="Toggle dark mode"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          <div className="flex items-center gap-1">
+            <Link
+              href="/welcome"
+              className="p-1.5 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors"
+              aria-label="Help & Welcome"
+            >
+              <CircleHelp className="w-4 h-4" />
+            </Link>
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-1.5 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors"
+              aria-label="Toggle dark mode"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
         )}
       </div>
 
@@ -457,17 +467,26 @@ export default function Page() {
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Text Cleaner</h1>
+            <h1 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Clean Copy</h1>
           </div>
           <div className="flex items-center gap-2">
             {mounted && (
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
-                aria-label="Toggle dark mode"
-              >
-                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
+              <>
+                <Link
+                  href="/welcome"
+                  className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
+                  aria-label="Help & Welcome"
+                >
+                  <CircleHelp className="w-5 h-5" />
+                </Link>
+                <button
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
+                  aria-label="Toggle dark mode"
+                >
+                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+              </>
             )}
           </div>
         </header>
