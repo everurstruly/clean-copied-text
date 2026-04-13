@@ -79,9 +79,11 @@ export default function Page() {
   const [countMode, setCountMode] = useState<'chars' | 'words'>('chars');
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   
   const inputPanelRef = useRef<PanelImperativeHandle>(null);
   const outputPanelRef = useRef<PanelImperativeHandle>(null);
+  const lastPanelSizeRef = useRef<number>(50);
 
   useEffect(() => {
     setMounted(true);
@@ -97,6 +99,7 @@ export default function Page() {
     fixFormatting: true,
     removeLinks: false,
     removeEmojis: false,
+    humanize: false,
     customRegex: '',
     format: 'markdown' as 'markdown' | 'html' | 'plain',
   });
@@ -172,17 +175,33 @@ export default function Page() {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = (format: 'txt' | 'md' | 'html' | 'json' = 'txt') => {
     if (!outputText) return;
-    const blob = new Blob([outputText], { type: 'text/plain' });
+    
+    let content = outputText;
+    let mimeType = 'text/plain';
+    let extension = format;
+
+    if (format === 'html') {
+      content = outputText.split('\n').map(line => `<p>${line}</p>`).join('\n');
+      mimeType = 'text/html';
+    } else if (format === 'json') {
+      content = JSON.stringify({ text: outputText }, null, 2);
+      mimeType = 'application/json';
+    } else if (format === 'md') {
+      mimeType = 'text/markdown';
+    }
+
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'cleaned-text.txt';
+    a.download = `cleaned-text.${extension}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    setShowExportMenu(false);
   };
 
   useEffect(() => {
@@ -272,6 +291,27 @@ export default function Page() {
     setLastCleanedInput(inputText);
   };
 
+  const handleResizeDoubleClick = () => {
+    const inputPanel = inputPanelRef.current;
+    if (!inputPanel) return;
+    const currentSize = inputPanel.getSize();
+    const sizeValue = typeof currentSize === 'number' ? currentSize : currentSize.asPercentage;
+    
+    if (sizeValue >= 45 && sizeValue <= 55) {
+      // We are currently at ~50/50. Toggle back to the last size if it was not 50.
+      if (lastPanelSizeRef.current && (lastPanelSizeRef.current < 45 || lastPanelSizeRef.current > 55)) {
+        inputPanel.resize(lastPanelSizeRef.current);
+      } else {
+        // Fallback if there was no meaningful last size
+        inputPanel.resize(100);
+      }
+    } else {
+      // Not at 50/50. Save current size and go to 50/50.
+      lastPanelSizeRef.current = sizeValue;
+      inputPanel.resize(50);
+    }
+  };
+
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Brand Header inside Sidebar */}
@@ -322,6 +362,7 @@ export default function Page() {
               { id: 'fixFormatting', label: 'Standardize Formatting', desc: 'Fix capitalization, bullet points' },
               { id: 'removeLinks', label: 'Remove Links/Emails', desc: 'Strip URLs and email addresses' },
               { id: 'removeEmojis', label: 'Remove Emojis', desc: 'Strip all emojis from the text' },
+              { id: 'humanize', label: 'Humanize Text', desc: 'Remove common AI phrases and hyphenations' },
             ].map((rule) => (
               <label key={rule.id} className="flex items-start justify-between py-2.5 cursor-pointer group">
                 <div className="pr-4">
@@ -435,40 +476,41 @@ export default function Page() {
           <Group key={isDesktop ? 'desktop' : 'mobile'} orientation={isDesktop ? 'horizontal' : 'vertical'} className="flex-1 w-full rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 shadow-sm bg-white dark:bg-[#111111] min-h-0">
             
             {/* Input Area */}
-            <Panel panelRef={inputPanelRef} defaultSize={50} minSize={20} className="relative bg-white dark:bg-[#111111] transition-colors duration-200" style={{ overflow: 'hidden' }}>
+            <Panel panelRef={inputPanelRef} defaultSize={50} minSize={isDesktop ? 25 : 10} className="relative bg-white dark:bg-[#111111] transition-colors duration-200" style={{ overflow: 'hidden' }}>
               <div className="absolute inset-0 flex flex-col">
-                <div className="bg-neutral-50/80 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 px-4 py-3 flex justify-between items-center shrink-0">
-                <div className="flex items-center gap-3">
+                <div className="bg-neutral-50/80 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 px-3 py-2 sm:px-4 sm:py-3 flex justify-between items-center shrink-0 h-12 sm:h-14">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Original Text</span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 sm:gap-1.5">
                     <button 
                       onClick={handlePaste}
-                      className="flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 px-2 py-1 rounded-md shadow-sm"
+                      className="flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto sm:px-2 sm:py-1 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 rounded-md shadow-sm"
                       title="Paste from clipboard"
                     >
                       {pasteError ? <X className="w-3.5 h-3.5 text-red-500" /> : <ClipboardPaste className="w-3.5 h-3.5" />}
-                      <span className="hidden sm:inline">{pasteError ? 'Use Ctrl+V' : 'Paste'}</span>
+                      <span className="hidden sm:inline ml-1.5">{pasteError ? 'Use Ctrl+V' : 'Paste'}</span>
                     </button>
                     <button
                       onClick={handleUndo}
                       disabled={past.length === 0}
-                      className="p-1 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      className="p-1 sm:p-1.5 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       title="Undo"
                     >
-                      <Undo2 className="w-4 h-4" />
+                      <Undo2 className="w-4 h-4 sm:w-4 sm:h-4" />
                     </button>
                     <button
                       onClick={handleRedo}
                       disabled={future.length === 0}
-                      className="p-1 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      className="p-1 sm:p-1.5 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       title="Redo"
                     >
-                      <Redo2 className="w-4 h-4" />
+                      <Redo2 className="w-4 h-4 sm:w-4 sm:h-4" />
                     </button>
                   </div>
                 </div>
                 <button onClick={() => setCountMode(m => m === 'chars' ? 'words' : 'chars')} className="flex items-center gap-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors cursor-pointer">
-                  <span>{getCount(inputText)}</span>
+                  <span className="hidden sm:inline">{getCount(inputText)}</span>
+                  <span className="sm:hidden">{getCount(inputText).split(' ')[0]}</span>
                   <ChevronsUpDown className="w-3 h-3" />
                 </button>
               </div>
@@ -483,88 +525,91 @@ export default function Page() {
               </div>
             </Panel>
 
-            <Separator className="w-full h-4 lg:w-4 lg:h-full bg-neutral-200/80 dark:bg-neutral-800/80 border-y lg:border-y-0 lg:border-x border-neutral-300 dark:border-neutral-700 hover:bg-blue-500/20 dark:hover:bg-blue-500/20 transition-colors flex items-center justify-center cursor-row-resize lg:cursor-col-resize z-10">
+            <Separator onDoubleClick={handleResizeDoubleClick} className="w-full h-4 lg:w-4 lg:h-full bg-neutral-200/80 dark:bg-neutral-800/80 border-y lg:border-y-0 lg:border-x border-neutral-300 dark:border-neutral-700 hover:bg-blue-500/20 dark:hover:bg-blue-500/20 transition-colors flex items-center justify-center cursor-row-resize lg:cursor-col-resize z-10">
               <div className="flex lg:flex-col gap-1 text-neutral-400 dark:text-neutral-500">
                 {isDesktop ? <GripVertical className="w-3 h-3" /> : <GripHorizontal className="w-3 h-3" />}
               </div>
             </Separator>
 
             {/* Output Area */}
-            <Panel panelRef={outputPanelRef} defaultSize={50} minSize={20} className="relative bg-white dark:bg-[#111111] transition-colors duration-200" style={{ overflow: 'hidden' }}>
+            <Panel panelRef={outputPanelRef} defaultSize={50} minSize={isDesktop ? 25 : 10} className="relative bg-white dark:bg-[#111111] transition-colors duration-200" style={{ overflow: 'hidden' }}>
               <div className="absolute inset-0 flex flex-col">
-                <div className="bg-neutral-50/80 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 px-4 py-2 sm:py-3 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-0 shrink-0">
-                <div className="flex items-center justify-between sm:justify-start gap-3">
-                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Cleaned Result</span>
-                  
-                  {outputText && (
-                    <div className="flex bg-neutral-200/50 dark:bg-neutral-800 rounded-md p-0.5 ml-2">
-                      <button
-                        onClick={() => setViewMode('result')}
-                        className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors ${viewMode === 'result' ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
-                      >
-                        Result
-                      </button>
-                      <button
-                        onClick={() => setViewMode('preview')}
-                        className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors ${viewMode === 'preview' ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
-                      >
-                        Preview
-                      </button>
-                      <button
-                        onClick={() => setViewMode('diff')}
-                        className={`px-2.5 py-1 text-xs font-medium rounded-sm transition-colors ${viewMode === 'diff' ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
-                      >
-                        Diff
-                      </button>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="sm:hidden p-1.5 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 rounded-md shadow-sm ml-auto"
-                    aria-label="Settings"
-                  >
-                    <Settings2 className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <div className="flex items-center justify-between sm:justify-end gap-3">
-                  <div className="flex items-center gap-3">
+                <div className="bg-neutral-50/80 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 px-3 py-2 sm:px-4 sm:py-3 flex justify-between items-center shrink-0 h-12 sm:h-14">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Cleaned Result</span>
+                    
                     {outputText && (
-                      <button onClick={() => setCountMode(m => m === 'chars' ? 'words' : 'chars')} className="flex items-center gap-1 text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">
-                        <span>{getCount(outputText)}</span>
+                      <div className="flex bg-neutral-200/50 dark:bg-neutral-800 rounded-md p-0.5">
+                        <button
+                          onClick={() => setViewMode('result')}
+                          className={`px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium rounded-sm transition-colors ${viewMode === 'result' ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
+                        >
+                          Result
+                        </button>
+                        <button
+                          onClick={() => setViewMode('preview')}
+                          className={`px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium rounded-sm transition-colors ${viewMode === 'preview' ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
+                        >
+                          Preview
+                        </button>
+                        <button
+                          onClick={() => setViewMode('diff')}
+                          className={`px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium rounded-sm transition-colors ${viewMode === 'diff' ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}
+                        >
+                          Diff
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 sm:gap-3">
+                    {outputText && (
+                      <button onClick={() => setCountMode(m => m === 'chars' ? 'words' : 'chars')} className="flex items-center gap-1 text-[11px] sm:text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">
+                        <span className="hidden sm:inline">{getCount(outputText)}</span>
+                        <span className="sm:hidden">{getCount(outputText).split(' ')[0]}</span>
                         <ChevronsUpDown className="w-3 h-3" />
                       </button>
                     )}
                     {outputText && (
                       <button 
                         onClick={handleCopy}
-                        className="flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 px-2.5 py-1.5 rounded-md shadow-sm"
+                        className="flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto sm:px-2.5 sm:py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 rounded-md shadow-sm"
+                        title="Copy"
                       >
                         {copied ? <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy'}</span>
+                        <span className="hidden sm:inline ml-1.5">{copied ? 'Copied!' : 'Copy'}</span>
                       </button>
                     )}
                     {outputText && (
-                      <button 
-                        onClick={handleDownload}
-                        className="flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 px-2.5 py-1.5 rounded-md shadow-sm"
-                        title="Download as .txt"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Export</span>
-                      </button>
+                      <div className="relative">
+                        <button 
+                          onClick={() => setShowExportMenu(!showExportMenu)}
+                          className="flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto sm:px-2.5 sm:py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 rounded-md shadow-sm"
+                          title="Download"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline ml-1.5">Export</span>
+                        </button>
+                        {showExportMenu && (
+                          <div className="absolute right-0 mt-1 w-32 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-md shadow-lg z-50 py-1">
+                            <button onClick={() => handleDownload('txt')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">Text (.txt)</button>
+                            <button onClick={() => handleDownload('md')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">Markdown (.md)</button>
+                            <button onClick={() => handleDownload('html')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">HTML (.html)</button>
+                            <button onClick={() => handleDownload('json')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">JSON (.json)</button>
+                          </div>
+                        )}
+                      </div>
                     )}
                     <button
                       onClick={() => setIsSidebarOpen(true)}
-                      className="hidden sm:flex lg:hidden p-1.5 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 rounded-md shadow-sm"
+                      className="lg:hidden flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto sm:px-2.5 sm:py-1.5 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 rounded-md shadow-sm"
                       aria-label="Settings"
                     >
                       <Settings2 className="w-4 h-4" />
+                      <span className="hidden sm:inline ml-1.5 text-xs font-medium">Settings</span>
                     </button>
                   </div>
                 </div>
-              </div>
               
               <div className="flex-1 relative overflow-hidden flex flex-col min-h-0">
                 <AnimatePresence>
