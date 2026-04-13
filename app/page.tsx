@@ -275,148 +275,106 @@ export default function Page() {
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Brand Header inside Sidebar */}
-      <div className="hidden lg:flex items-center justify-between p-6 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-            <Sparkles className="w-4 h-4 text-white" />
+      <div className="hidden lg:flex items-center justify-between p-5 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-neutral-900 dark:text-white tracking-tight">Text Cleaner</h1>
+          <h1 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Text Cleaner</h1>
         </div>
         {mounted && (
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
+            className="p-1.5 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors"
             aria-label="Toggle dark mode"
           >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 min-h-0">
-        <div>
-          <h2 className="text-xl font-semibold text-neutral-900 dark:text-white flex items-center gap-2">
-            <Settings2 className="w-5 h-5" />
-            Configuration
-          </h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Adjust cleaning rules and output format</p>
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Output Format Section */}
+        <div className="p-5 border-b border-neutral-200 dark:border-neutral-800">
+          <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">Output Format</h3>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'markdown', label: 'MD', icon: Code },
+              { id: 'html', label: 'HTML', icon: FileText },
+              { id: 'plain', label: 'TXT', icon: AlignLeft },
+            ].map((fmt) => (
+              <label key={fmt.id} className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg border cursor-pointer transition-all ${options.format === fmt.id ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-sm' : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 hover:bg-white dark:hover:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 bg-transparent'}`}>
+                <input type="radio" name="format" value={fmt.id} checked={options.format === fmt.id} onChange={(e) => setOptions({...options, format: e.target.value as any})} className="sr-only" />
+                <fmt.icon className="w-4 h-4" />
+                <span className="text-[10px] font-medium">{fmt.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
-      <div className="space-y-4">
-        <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Sanitization Rules</h3>
-        
-        <div className="bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm divide-y divide-neutral-100 dark:divide-neutral-800/50">
-          <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors">
-            <div className="pr-4">
-              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-200">Hidden Characters</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Remove zero-width spaces, BOM, etc.</p>
-            </div>
-            <div className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full">
-              <input type="checkbox" className="peer sr-only" checked={options.removeHiddenChars} onChange={e => setOptions({...options, removeHiddenChars: e.target.checked})} />
-              <div className="h-6 w-11 rounded-full bg-neutral-200 dark:bg-neutral-700 peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500 transition-colors duration-200 ease-in-out"></div>
-              <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></div>
-            </div>
-          </label>
+        {/* Cleaning Rules Section */}
+        <div className="p-5 border-b border-neutral-200 dark:border-neutral-800">
+          <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">Cleaning Rules</h3>
+          <div className="space-y-1">
+            {[
+              { id: 'removeHiddenChars', label: 'Hidden Characters', desc: 'Remove zero-width spaces, BOM' },
+              { id: 'fixSpacing', label: 'Fix Spacing', desc: 'Remove double spaces, fix punctuation' },
+              { id: 'fixFormatting', label: 'Standardize Formatting', desc: 'Fix capitalization, bullet points' },
+              { id: 'removeLinks', label: 'Remove Links/Emails', desc: 'Strip URLs and email addresses' },
+              { id: 'removeEmojis', label: 'Remove Emojis', desc: 'Strip all emojis from the text' },
+            ].map((rule) => (
+              <label key={rule.id} className="flex items-start justify-between py-2.5 cursor-pointer group">
+                <div className="pr-4">
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-white transition-colors">{rule.label}</span>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-500 mt-0.5 leading-tight">{rule.desc}</p>
+                </div>
+                <div className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full mt-0.5">
+                  <input 
+                    type="checkbox" 
+                    className="peer sr-only" 
+                    checked={options[rule.id as keyof typeof options] as boolean} 
+                    onChange={e => setOptions({...options, [rule.id]: e.target.checked})} 
+                  />
+                  <div className="h-5 w-9 rounded-full bg-neutral-200 dark:bg-neutral-700 peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500 transition-colors duration-200 ease-in-out"></div>
+                  <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out peer-checked:translate-x-4"></div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
 
-          <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors">
-            <div className="pr-4">
-              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-200">Fix Spacing</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Remove double spaces, fix punctuation.</p>
-            </div>
-            <div className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full">
-              <input type="checkbox" className="peer sr-only" checked={options.fixSpacing} onChange={e => setOptions({...options, fixSpacing: e.target.checked})} />
-              <div className="h-6 w-11 rounded-full bg-neutral-200 dark:bg-neutral-700 peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500 transition-colors duration-200 ease-in-out"></div>
-              <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></div>
-            </div>
-          </label>
-
-          <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors">
-            <div className="pr-4">
-              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-200">Standardize Formatting</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Fix capitalization, bullet points.</p>
-            </div>
-            <div className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full">
-              <input type="checkbox" className="peer sr-only" checked={options.fixFormatting} onChange={e => setOptions({...options, fixFormatting: e.target.checked})} />
-              <div className="h-6 w-11 rounded-full bg-neutral-200 dark:bg-neutral-700 peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500 transition-colors duration-200 ease-in-out"></div>
-              <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></div>
-            </div>
-          </label>
-
-          <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors">
-            <div className="pr-4">
-              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-200">Remove Links/Emails</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Strip URLs and email addresses.</p>
-            </div>
-            <div className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full">
-              <input type="checkbox" className="peer sr-only" checked={options.removeLinks} onChange={e => setOptions({...options, removeLinks: e.target.checked})} />
-              <div className="h-6 w-11 rounded-full bg-neutral-200 dark:bg-neutral-700 peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500 transition-colors duration-200 ease-in-out"></div>
-              <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></div>
-            </div>
-          </label>
-
-          <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors">
-            <div className="pr-4">
-              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-200">Remove Emojis</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Strip all emojis from the text.</p>
-            </div>
-            <div className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full">
-              <input type="checkbox" className="peer sr-only" checked={options.removeEmojis} onChange={e => setOptions({...options, removeEmojis: e.target.checked})} />
-              <div className="h-6 w-11 rounded-full bg-neutral-200 dark:bg-neutral-700 peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500 transition-colors duration-200 ease-in-out"></div>
-              <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></div>
-            </div>
-          </label>
+        {/* Custom Regex Section */}
+        <div className="p-5">
+          <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">Custom Regex</h3>
+          <div className="space-y-2">
+            <input
+              type="text"
+              placeholder="e.g. \d+ to remove numbers"
+              value={options.customRegex}
+              onChange={(e) => setOptions({ ...options, customRegex: e.target.value })}
+              className="w-full px-3 py-2 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg text-sm text-neutral-900 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono shadow-sm"
+            />
+            <p className="text-[11px] text-neutral-500 dark:text-neutral-400">Matches will be removed from the text.</p>
+          </div>
         </div>
       </div>
-
-      <div className="space-y-4">
-        <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Custom Regex</h3>
-        <div className="bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm p-4">
-          <p className="text-sm font-medium text-neutral-900 dark:text-neutral-200 mb-2">Regex Pattern</p>
-          <input
-            type="text"
-            placeholder="e.g. \d+ to remove numbers"
-            value={options.customRegex}
-            onChange={(e) => setOptions({ ...options, customRegex: e.target.value })}
-            className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm text-neutral-900 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono"
-          />
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">Matches will be removed from the text.</p>
-        </div>
+      
+      <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 shrink-0">
+        <button 
+          onClick={() => setShowShortcuts(true)}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
+        >
+          <Keyboard className="w-3.5 h-3.5" />
+          Keyboard Shortcuts
+        </button>
       </div>
-
-      <div className="space-y-4">
-        <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Output Format</h3>
-        <div className="grid grid-cols-1 gap-2">
-          {[
-            { id: 'markdown', label: 'Markdown', icon: Code },
-            { id: 'html', label: 'Rich Text (HTML)', icon: FileText },
-            { id: 'plain', label: 'Plain Text', icon: AlignLeft },
-          ].map((fmt) => (
-            <label key={fmt.id} className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${options.format === fmt.id ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-sm' : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 text-neutral-700 dark:text-neutral-300 bg-white dark:bg-[#1a1a1a]'}`}>
-              <input type="radio" name="format" value={fmt.id} checked={options.format === fmt.id} onChange={(e) => setOptions({...options, format: e.target.value as any})} className="sr-only" />
-              <fmt.icon className="w-4 h-4" />
-              <span className="text-sm font-medium">{fmt.label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-    </div>
-    
-    <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 shrink-0">
-      <button 
-        onClick={() => setShowShortcuts(true)}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-      >
-        <Keyboard className="w-4 h-4" />
-        Keyboard Shortcuts
-      </button>
-    </div>
     </div>
   );
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-neutral-50 dark:bg-[#0a0a0a] flex flex-col lg:flex-row font-sans transition-colors duration-200">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-80 bg-white dark:bg-[#111111] border-r border-neutral-200 dark:border-neutral-800 h-full shrink-0 transition-colors duration-200 z-10">
+      <aside className="hidden lg:flex flex-col w-80 bg-neutral-50 dark:bg-[#0a0a0a] border-r border-neutral-200 dark:border-neutral-800 h-full shrink-0 transition-colors duration-200 z-10">
         {sidebarContent}
       </aside>
 
@@ -436,7 +394,7 @@ export default function Page() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-80 bg-white dark:bg-[#111111] shadow-2xl z-50 lg:hidden flex flex-col"
+              className="fixed inset-y-0 left-0 w-80 bg-neutral-50 dark:bg-[#0a0a0a] shadow-2xl z-50 lg:hidden flex flex-col"
             >
               <button 
                 onClick={() => setIsSidebarOpen(false)}
