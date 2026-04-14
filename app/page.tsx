@@ -19,9 +19,53 @@ function stripHtml(html: string) {
   return div.innerText || '';
 }
 
+function normalizePastedHtml(html: string) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const body = doc.body;
+
+  body.querySelectorAll('script, style, meta, link').forEach((el) => el.remove());
+
+  body.querySelectorAll<HTMLElement>('*').forEach((el) => {
+    const style = el.getAttribute('style');
+    
+    // remove invisible elements completely
+    if (style) {
+      if (
+        /display\s*:\s*none/i.test(style) ||
+        /visibility\s*:\s*hidden/i.test(style) ||
+        /opacity\s*:\s*0(?!\.)/i.test(style) ||
+        /font-size\s*:\s*0/i.test(style)
+      ) {
+        el.remove();
+        return;
+      }
+    }
+
+    if (!style) return;
+
+    // remove pasted text/background colors that break dark/light preview
+    const cleaned = style
+      .replace(/(?:^|;)\s*color\s*:\s*[^;]+/gi, '')
+      .replace(/(?:^|;)\s*background(?:-color)?\s*:\s*[^;]+/gi, '')
+      .replace(/^\s*;\s*|\s*;\s*$/g, '')
+      .replace(/\s*;\s*;/g, ';')
+      .trim();
+
+    if (cleaned) {
+      el.setAttribute('style', cleaned);
+    } else {
+      el.removeAttribute('style');
+    }
+  });
+
+  return body.innerHTML.trim();
+}
+
 export default function Page() {
   const [inputText, setInputText] = useState('');
   const [inputHtml, setInputHtml] = useState<string | null>(null);
+  const [formatTouched, setFormatTouched] = useState(false);
+  const [lastPasteWasRich, setLastPasteWasRich] = useState(false);
   const [outputText, setOutputText] = useState('');
   const [isCleaning, setIsCleaning] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -45,8 +89,20 @@ export default function Page() {
       setPast(prev => [...prev, inputText]);
       setFuture([]);
       setInputText(newText);
-      setInputHtml(null); // important
+      setInputHtml(null);
+      setLastPasteWasRich(false);
     }
+  };
+
+  const applyPastedInput = (text: string, html: string | null) => {
+    if (text !== inputText) {
+      setPast(prev => [...prev, inputText]);
+      setFuture([]);
+      setInputText(text);
+    }
+
+    setInputHtml(html);
+    setLastPasteWasRich(Boolean(html && html.trim()));
   };
 
   const handleUndo = () => {
@@ -56,6 +112,8 @@ export default function Page() {
     setFuture(prev => [inputText, ...prev]);
     setPast(newPast);
     setInputText(previous);
+    setInputHtml(null);
+    setLastPasteWasRich(false);
   };
 
   const handleRedo = () => {
@@ -65,6 +123,8 @@ export default function Page() {
     setPast(prev => [...prev, inputText]);
     setFuture(newFuture);
     setInputText(next);
+    setInputHtml(null);
+    setLastPasteWasRich(false);
   };
 
   useEffect(() => {
@@ -129,9 +189,9 @@ export default function Page() {
     try {
       let result = '';
 
-      // 🔑 key logic
-      if (options.format === 'html' && inputHtml) {
-        result = inputHtml; // preserve formatting
+      // preserve rich structure for rich pastes when html output is selected
+      if (options.format === 'html' && inputHtml && lastPasteWasRich) {
+        result = inputHtml;
       } else {
         result = await cleanText(inputText, options);
       }
@@ -198,12 +258,18 @@ export default function Page() {
         }
       }
 
-      // fallback
-      if (!text) text = html ? stripHtml(html) : '';
+      const normalizedHtml = html ? normalizePastedHtml(html) : null;
+      if (!text) text = normalizedHtml ? stripHtml(normalizedHtml) : '';
 
-      handleInputTextChange(text);
-      setInputHtml(html);   // new state
+      applyPastedInput(text, normalizedHtml);
 
+      // auto-pick the most likely correct output mode, unless user explicitly changed it
+      if (!formatTouched) {
+        setOptions(prev => ({
+          ...prev,
+          format: normalizedHtml ? 'html' : 'markdown',
+        }));
+      }
     } catch (err) {
       console.error('Failed to read clipboard contents: ', err);
       setPasteError(true);
@@ -211,7 +277,7 @@ export default function Page() {
     }
   };
 
-  const handleDownload = (format: 'txt' | 'md' | 'html' | 'json' = 'txt') => {
+  const handleDownload = async (format: 'txt' | 'md' | 'html' | 'json' = 'txt') => {
     if (!outputText) return;
     
     let content = outputText;
@@ -219,7 +285,10 @@ export default function Page() {
     let extension = format;
 
     if (format === 'html') {
-      content = outputText.split('\n').map(line => `<p>${line}</p>`).join('\n');
+      content =
+        options.format === 'html'
+          ? outputText
+          : await marked.parse(outputText, { breaks: false });
       mimeType = 'text/html';
     } else if (format === 'json') {
       content = JSON.stringify({ text: outputText }, null, 2);
@@ -375,12 +444,15 @@ export default function Page() {
           <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">Output Format</h3>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { id: 'markdown', label: 'MD', icon: Code },
-              { id: 'html', label: 'HTML', icon: FileText },
-              { id: 'plain', label: 'TXT', icon: AlignLeft },
+              { id: 'markdown', label: 'Markdown', icon: Code },
+              { id: 'html', label: 'Document', icon: FileText },
+              { id: 'plain', label: 'Message', icon: AlignLeft },
             ].map((fmt) => (
               <label key={fmt.id} className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg border cursor-pointer transition-all ${options.format === fmt.id ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-sm' : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 hover:bg-white dark:hover:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 bg-transparent'}`}>
-                <input type="radio" name="format" value={fmt.id} checked={options.format === fmt.id} onChange={(e) => setOptions({...options, format: e.target.value as any})} className="sr-only" />
+                <input type="radio" name="format" value={fmt.id} checked={options.format === fmt.id} onChange={(e) => {
+                  setFormatTouched(true);
+                  setOptions({ ...options, format: e.target.value as any });
+                }} className="sr-only" />
                 <fmt.icon className="w-4 h-4" />
                 <span className="text-[10px] font-medium">{fmt.label}</span>
               </label>
@@ -393,7 +465,7 @@ export default function Page() {
           <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">Cleaning Rules</h3>
           <div className="space-y-1">
             {[
-              { id: 'removeHiddenChars', label: 'Hidden Characters', desc: 'Remove zero-width spaces, BOM' },
+              { id: 'removeHiddenChars', label: 'Remove hidden text', desc: 'Removes invisible text and hidden formatting' },
               { id: 'fixSpacing', label: 'Fix Spacing', desc: 'Remove double spaces, fix punctuation' },
               { id: 'removeLinks', label: 'Remove Links/Emails', desc: 'Strip URLs and email addresses' },
             ].map((rule) => (
@@ -720,9 +792,9 @@ export default function Page() {
                   />
                 ) : viewMode === 'preview' ? (
                   <div className={`flex-1 w-full p-4 overflow-auto bg-transparent ${(hasUnappliedChanges || isReadyToClean) ? 'opacity-50' : ''} transition-opacity duration-300 min-h-0`}>
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <div className="prose prose-sm dark:prose-invert max-w-none [&_*]:max-w-full">
                       {options.format === 'html' ? (
-                        <div dangerouslySetInnerHTML={{ __html: outputText || 'Cleaned text will appear here...' }} />
+                        <div className="clean-copy-html-preview" dangerouslySetInnerHTML={{ __html: outputText || 'Cleaned text will appear here...' }} />
                       ) : (
                         <Markdown remarkPlugins={[remarkBreaks]}>{outputText || 'Cleaned text will appear here...'}</Markdown>
                       )}

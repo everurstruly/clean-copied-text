@@ -1,3 +1,12 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 @variant dark (&:is(.dark *));
+
+.clean-copy-html-preview {
+  color: inherit;
+  background: transparent;
+}
+
+.clean-copy-html-preview * {
+  max-width: 100%;
+}

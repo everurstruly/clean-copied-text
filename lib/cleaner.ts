@@ -58,7 +58,7 @@ export async function cleanText(
 
     // Always remove hidden chars
     if (removeHiddenChars) {
-      line = line.replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '');
+      line = line.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '');
     }
 
     if (isTable) {
