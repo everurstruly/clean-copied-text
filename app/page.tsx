@@ -70,6 +70,12 @@ export default function Page() {
   const [copied, setCopied] = useState(false);
   const [pasteError, setPasteError] = useState(false);
   const [showCopyMenu, setShowCopyMenu] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
   
   // Track last cleaned state to show "Apply Latest Preferences" CTA
   const [lastCleanedOptions, setLastCleanedOptions] = useState<any>(null);
@@ -198,7 +204,7 @@ export default function Page() {
       setOutputText(result);
     } catch (error) {
       console.error(error);
-      alert('Failed to clean text. Please try again.');
+      showToast('Failed to clean text. Please try again.');
     } finally {
       setIsCleaning(false);
     }
@@ -257,7 +263,7 @@ export default function Page() {
         setShowCopyMenu(false);
       } catch (fallbackErr) {
         console.error('Failed to copy plain text fallback: ', fallbackErr);
-        alert('Failed to copy to clipboard. Your browser might be blocking it.');
+        showToast('Failed to copy. Your browser might be blocking it.');
       }
     }
   };
@@ -291,10 +297,57 @@ export default function Page() {
         ...prev,
         format: normalizedHtml ? 'html' : 'markdown',
       }));
-    } catch (err) {
-      console.error('Failed to read clipboard contents: ', err);
+    } catch (err: any) {
+      // Suppress the console error for expected permission blocks in iframes
+      const errMsg = err?.message || '';
+      if (err?.name !== 'NotAllowedError' && !errMsg.includes('permissions policy')) {
+        console.error('Failed to read clipboard contents: ', err);
+      }
       setPasteError(true);
+      showToast('Clipboard access blocked. Please use Ctrl+V / Cmd+V to paste.');
       setTimeout(() => setPasteError(false), 3000);
+    }
+  };
+
+  const handleNativePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const html = e.clipboardData.getData('text/html');
+    const text = e.clipboardData.getData('text/plain');
+
+    if (html || text) {
+      e.preventDefault();
+      
+      const normalizedHtml = html ? normalizePastedHtml(html) : null;
+      const pastedText = text || (normalizedHtml ? stripHtml(normalizedHtml) : '');
+      
+      const target = e.target as HTMLTextAreaElement;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      
+      const newText = inputText.substring(0, start) + pastedText + inputText.substring(end);
+      
+      const isReplacingAll = (start === 0 && end === inputText.length);
+      const isBoxEmpty = inputText.length === 0;
+      const shouldKeepHtml = (isBoxEmpty || isReplacingAll) && normalizedHtml;
+      
+      setPast(prev => [...prev, inputText]);
+      setFuture([]);
+      setInputText(newText);
+      
+      if (shouldKeepHtml) {
+        setInputHtml(normalizedHtml);
+        setLastPasteWasRich(true);
+        setOptions(prev => ({ ...prev, format: 'html' }));
+      } else {
+        setInputHtml(null);
+        setLastPasteWasRich(false);
+        if (isBoxEmpty || isReplacingAll) {
+          setOptions(prev => ({ ...prev, format: 'markdown' }));
+        }
+      }
+      
+      setTimeout(() => {
+        target.selectionStart = target.selectionEnd = start + pastedText.length;
+      }, 0);
     }
   };
 
@@ -549,6 +602,7 @@ export default function Page() {
               <textarea
                 value={inputText}
                 onChange={(e) => handleInputTextChange(e.target.value)}
+                onPaste={handleNativePaste}
                 onFocus={() => setIsInputFocused(true)}
                 onBlur={() => setIsInputFocused(false)}
                 placeholder="Paste your messy text here..."
@@ -816,6 +870,20 @@ export default function Page() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium rounded-full shadow-lg flex items-center gap-2"
+          >
+            {toastMessage}
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
