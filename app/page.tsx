@@ -11,8 +11,17 @@ import { Panel, Group, Separator, PanelImperativeHandle } from 'react-resizable-
 import Markdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 
+import { marked } from 'marked';
+
+function stripHtml(html: string) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.innerText || '';
+}
+
 export default function Page() {
   const [inputText, setInputText] = useState('');
+  const [inputHtml, setInputHtml] = useState<string | null>(null);
   const [outputText, setOutputText] = useState('');
   const [isCleaning, setIsCleaning] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -36,6 +45,7 @@ export default function Page() {
       setPast(prev => [...prev, inputText]);
       setFuture([]);
       setInputText(newText);
+      setInputHtml(null); // important
     }
   };
 
@@ -95,14 +105,10 @@ export default function Page() {
   }, []);
 
   const [options, setOptions] = useState({
-    removeHiddenChars: true,
-    fixSpacing: true,
-    fixFormatting: true,
-    removeLinks: false,
-    removeEmojis: false,
-    humanize: false,
-    customRegex: '',
     format: 'markdown' as 'markdown' | 'html' | 'plain',
+    removeLinks: false,
+    fixSpacing: true,
+    removeHiddenChars: true,
   });
 
   const statuses = [
@@ -114,14 +120,22 @@ export default function Page() {
   ];
 
   const handleClean = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() && !inputHtml) return;
     setIsCleaning(true);
     
     setLastCleanedOptions(options);
     setLastCleanedInput(inputText);
 
     try {
-      const result = await cleanText(inputText, options);
+      let result = '';
+
+      // 🔑 key logic
+      if (options.format === 'html' && inputHtml) {
+        result = inputHtml; // preserve formatting
+      } else {
+        result = await cleanText(inputText, options);
+      }
+
       setOutputText(result);
     } catch (error) {
       console.error(error);
@@ -133,22 +147,22 @@ export default function Page() {
 
   const handleCopy = async () => {
     try {
-      if (options.format === 'html') {
-        const blobHtml = new Blob([outputText], { type: 'text/html' });
-        // Create a temporary element to extract plain text from HTML
-        const tempEl = document.createElement('div');
-        tempEl.innerHTML = outputText;
-        const plainTextFallback = tempEl.innerText || tempEl.textContent || '';
-        
-        const blobText = new Blob([plainTextFallback], { type: 'text/plain' });
-        const data = [new ClipboardItem({
-          'text/html': blobHtml,
-          'text/plain': blobText,
-        })];
-        await navigator.clipboard.write(data);
-      } else {
-        await navigator.clipboard.writeText(outputText);
-      }
+      const html =
+        options.format === 'html'
+          ? outputText
+          : await marked.parse(outputText, { breaks: false });
+
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+      const text = temp.innerText;
+
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+        }),
+      ]);
+
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -167,8 +181,29 @@ export default function Page() {
 
   const handlePaste = async () => {
     try {
-      const text = await navigator.clipboard.readText();
+      const items = await navigator.clipboard.read();
+
+      let html: string | null = null;
+      let text = '';
+
+      for (const item of items) {
+        if (!html && item.types.includes('text/html')) {
+          const blob = await item.getType('text/html');
+          html = await blob.text();
+        }
+
+        if (!text && item.types.includes('text/plain')) {
+          const blob = await item.getType('text/plain');
+          text = await blob.text();
+        }
+      }
+
+      // fallback
+      if (!text) text = html ? stripHtml(html) : '';
+
       handleInputTextChange(text);
+      setInputHtml(html);   // new state
+
     } catch (err) {
       console.error('Failed to read clipboard contents: ', err);
       setPasteError(true);
@@ -251,17 +286,8 @@ export default function Page() {
     if (options.fixSpacing !== lastCleanedOptions.fixSpacing) {
       changes.push(`Fix Spacing ${options.fixSpacing ? 'enabled' : 'disabled'}`);
     }
-    if (options.fixFormatting !== lastCleanedOptions.fixFormatting) {
-      changes.push(`Standardize Formatting ${options.fixFormatting ? 'enabled' : 'disabled'}`);
-    }
     if (options.removeLinks !== lastCleanedOptions.removeLinks) {
       changes.push(`Remove Links/Emails ${options.removeLinks ? 'enabled' : 'disabled'}`);
-    }
-    if (options.removeEmojis !== lastCleanedOptions.removeEmojis) {
-      changes.push(`Remove Emojis ${options.removeEmojis ? 'enabled' : 'disabled'}`);
-    }
-    if (options.customRegex !== lastCleanedOptions.customRegex) {
-      changes.push(`Custom Regex changed`);
     }
     return changes;
   };
@@ -369,10 +395,7 @@ export default function Page() {
             {[
               { id: 'removeHiddenChars', label: 'Hidden Characters', desc: 'Remove zero-width spaces, BOM' },
               { id: 'fixSpacing', label: 'Fix Spacing', desc: 'Remove double spaces, fix punctuation' },
-              { id: 'fixFormatting', label: 'Standardize Formatting', desc: 'Fix capitalization, bullet points' },
               { id: 'removeLinks', label: 'Remove Links/Emails', desc: 'Strip URLs and email addresses' },
-              { id: 'removeEmojis', label: 'Remove Emojis', desc: 'Strip all emojis from the text' },
-              { id: 'humanize', label: 'Humanize Text', desc: 'Remove common AI phrases and hyphenations' },
             ].map((rule) => (
               <label key={rule.id} className="flex items-start justify-between py-2.5 cursor-pointer group">
                 <div className="pr-4">
@@ -391,21 +414,6 @@ export default function Page() {
                 </div>
               </label>
             ))}
-          </div>
-        </div>
-
-        {/* Custom Regex Section */}
-        <div className="p-5">
-          <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">Custom Regex</h3>
-          <div className="space-y-2">
-            <input
-              type="text"
-              placeholder="e.g. \d+ to remove numbers"
-              value={options.customRegex}
-              onChange={(e) => setOptions({ ...options, customRegex: e.target.value })}
-              className="w-full px-3 py-2 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-lg text-sm text-neutral-900 dark:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono shadow-sm"
-            />
-            <p className="text-[11px] text-neutral-500 dark:text-neutral-400">Matches will be removed from the text.</p>
           </div>
         </div>
       </div>
@@ -656,10 +664,7 @@ export default function Page() {
                               <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Format: {options.format}</span>
                               {options.removeHiddenChars && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove Hidden Chars</span>}
                               {options.fixSpacing && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Fix Spacing</span>}
-                              {options.fixFormatting && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Fix Formatting</span>}
                               {options.removeLinks && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove Links</span>}
-                              {options.removeEmojis && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove Emojis</span>}
-                              {options.customRegex && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Custom Regex</span>}
                             </>
                           ) : (
                             pendingChanges.map((change, i) => (

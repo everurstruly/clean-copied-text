@@ -1,25 +1,50 @@
-# Clean Copy
+## Clean Copy
 
-Clean Copy is a web-based tool for sanitizing, formatting, and standardizing messy text.
+Clean Copy is a browser-based tool for making copied content work correctly across apps.
 
-It provides a precise, elegant interface to strip hidden characters, fix formatting artifacts, and transform rough text into structured formats ready for reuse. This makes it easier to clean up AI-generated messages, messy copy-pastes, and broken documents in seconds.
+It fixes the common problems that happen when copying text between platforms—like broken formatting, lost structure, or inconsistent spacing—especially with AI-generated content and rich text editors like Google Docs.
 
-Everything runs locally on your machine. No server. No login. No data leaves your browser.
+Everything runs locally. No server. No login. No data leaves your browser.
+
+---
 
 ## Overview
 
-Copying responses from AI platforms often carries over unwanted formatting—like background colors, inline styles, and rigid spacing rules—making the text frustrating to paste and use elsewhere. Furthermore, it's often difficult to retain the *correct* structural formatting (like bolding, lists, and headers) when moving these responses into rich-text editors like Google Docs or email clients.
+Copying from AI tools or documents often results in one of two problems:
 
-Clean Copy was built to solve this exact problem. It acts as a bridge between platforms, stripping away the unwanted styling baggage while preserving the core structure. By allowing you to seamlessly convert and export your text into Markdown, HTML, or Plain Text, Clean Copy ensures your content retains its integrity and works perfectly across any tool or environment.
+* unwanted formatting (weird spacing, hidden characters)
+* or lost formatting (headings, lists, bold text disappearing)
+
+Clean Copy solves this by acting as a compatibility layer between platforms.
+
+* It cleans text when needed
+* preserves structure when possible
+* and ensures copied output works reliably everywhere
+
+---
 
 ## What it does
 
-- **Deep Cleaning:** Strip away zero-width spaces, BOMs, and invisible formatting artifacts that break your code and documents.
-- **Smart Formatting:** Fix double spaces, correct punctuation, and standardize capitalization and bullet points.
-- **Content Filtering:** Easily remove links, emails, emojis, or apply custom Regex patterns to strip specific content.
-- **Universal Export:** Transform your cleaned text into perfectly formatted Markdown, HTML, Plain Text, or JSON with a single click.
-- **Visual Diffing:** Compare your original and cleaned text side-by-side to see exactly what changed.
+* **Clean when needed**
+  Removes hidden characters and fixes spacing issues that break pasted content.
+
+* **Preserve structure**
+  Keeps headings, lists, and formatting intact when copying from rich sources like Google Docs.
+
+* **Smart copy**
+  Copies both rich text and plain text automatically so pasting works correctly across different apps.
+
+* **Flexible output (optional)**
+  Allows exporting as Markdown, Document (rich text), or plain text when needed.
+
+---
 
 ## Scope
 
-This repository contains the codebase for the Clean Copy web application, including the Next.js interface, Tailwind CSS styling, and the client-side logic used to process, analyze, and operate on text directly within the browser.
+This repository contains the Clean Copy web app, including:
+
+* client-side text processing
+* clipboard handling (plain + rich formats)
+* UI for cleaning, previewing, and exporting content
+
+All processing happens locally in the browser.
