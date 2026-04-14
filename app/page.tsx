@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings2, Sparkles, Copy, Check, X, FileText, Code, AlignLeft, Moon, Sun, RefreshCw, GripVertical, GripHorizontal, ChevronsUpDown, Download, Keyboard, Command, ClipboardPaste, Undo2, Redo2, CircleHelp } from 'lucide-react';
+import { Settings2, Sparkles, Copy, Check, X, FileText, Code, AlignLeft, Moon, Sun, RefreshCw, GripVertical, GripHorizontal, ChevronsUpDown, Download, Keyboard, Command, ClipboardPaste, Undo2, Redo2, CircleHelp, ChevronDown } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { cleanText } from '@/lib/cleaner';
@@ -64,13 +64,12 @@ function normalizePastedHtml(html: string) {
 export default function Page() {
   const [inputText, setInputText] = useState('');
   const [inputHtml, setInputHtml] = useState<string | null>(null);
-  const [formatTouched, setFormatTouched] = useState(false);
   const [lastPasteWasRich, setLastPasteWasRich] = useState(false);
   const [outputText, setOutputText] = useState('');
   const [isCleaning, setIsCleaning] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [pasteError, setPasteError] = useState(false);
+  const [showCopyMenu, setShowCopyMenu] = useState(false);
   
   // Track last cleaned state to show "Apply Latest Preferences" CTA
   const [lastCleanedOptions, setLastCleanedOptions] = useState<any>(null);
@@ -205,16 +204,36 @@ export default function Page() {
     }
   };
 
-  const handleCopy = async () => {
-    try {
-      const html =
-        options.format === 'html'
-          ? outputText
-          : await marked.parse(outputText, { breaks: false });
+  const getFormattedText = async (targetFormat: 'html' | 'plain' | 'markdown') => {
+    if (targetFormat === options.format) {
+      return outputText;
+    }
+    if (targetFormat === 'html' && inputHtml && lastPasteWasRich) {
+      return inputHtml;
+    }
+    return await cleanText(inputText, { ...options, format: targetFormat });
+  };
 
-      const temp = document.createElement('div');
-      temp.innerHTML = html;
-      const text = temp.innerText;
+  const handleCopy = async (overrideFormat?: 'html' | 'plain' | 'markdown') => {
+    try {
+      const targetFormat = overrideFormat || options.format;
+      const contentToCopy = await getFormattedText(targetFormat);
+      
+      let html = '';
+      let text = '';
+
+      if (targetFormat === 'html') {
+        html = contentToCopy;
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        text = temp.innerText;
+      } else if (targetFormat === 'markdown') {
+        text = contentToCopy;
+        html = await marked.parse(contentToCopy, { breaks: false });
+      } else {
+        text = contentToCopy;
+        html = text.replace(/\n/g, '<br>');
+      }
 
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -225,13 +244,17 @@ export default function Page() {
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      setShowCopyMenu(false);
     } catch (err) {
       console.error('Failed to copy rich text: ', err);
       // Fallback to plain text
       try {
-        await navigator.clipboard.writeText(outputText);
+        const targetFormat = overrideFormat || options.format;
+        const contentToCopy = await getFormattedText(targetFormat);
+        await navigator.clipboard.writeText(contentToCopy);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+        setShowCopyMenu(false);
       } catch (fallbackErr) {
         console.error('Failed to copy plain text fallback: ', fallbackErr);
         alert('Failed to copy to clipboard. Your browser might be blocking it.');
@@ -263,13 +286,11 @@ export default function Page() {
 
       applyPastedInput(text, normalizedHtml);
 
-      // auto-pick the most likely correct output mode, unless user explicitly changed it
-      if (!formatTouched) {
-        setOptions(prev => ({
-          ...prev,
-          format: normalizedHtml ? 'html' : 'markdown',
-        }));
-      }
+      // auto-pick the most likely correct output mode
+      setOptions(prev => ({
+        ...prev,
+        format: normalizedHtml ? 'html' : 'markdown',
+      }));
     } catch (err) {
       console.error('Failed to read clipboard contents: ', err);
       setPasteError(true);
@@ -326,9 +347,7 @@ export default function Page() {
       // Cmd/Ctrl + , to toggle settings (on mobile) or focus it
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault();
-        if (!isDesktop) {
-          setIsSidebarOpen(prev => !prev);
-        }
+        // Settings are now always visible
       }
       // Cmd/Ctrl + / to toggle shortcuts
       if ((e.metaKey || e.ctrlKey) && e.key === '/') {
@@ -346,7 +365,7 @@ export default function Page() {
     const changes = [];
     if (inputText !== lastCleanedInput) changes.push("Original text was edited");
     if (options.format !== lastCleanedOptions.format) {
-      const formatNames = { markdown: 'Markdown', html: 'Rich Text', plain: 'Plain Text' };
+      const formatNames = { markdown: 'Markdown', html: 'Document', plain: 'Message' };
       changes.push(`Output format changed to ${formatNames[options.format]}`);
     }
     if (options.removeHiddenChars !== lastCleanedOptions.removeHiddenChars) {
@@ -408,148 +427,62 @@ export default function Page() {
     }
   };
 
-  const sidebarContent = (
-    <div className="flex flex-col h-full">
-      {/* Brand Header inside Sidebar */}
-      <div className="hidden lg:flex items-center justify-between p-5 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
-          </div>
-          <h1 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Clean Copy</h1>
-        </div>
-        {mounted && (
-          <div className="flex items-center gap-1">
-            <Link
-              href="/welcome"
-              className="p-1.5 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors"
-              aria-label="Help & Welcome"
-            >
-              <CircleHelp className="w-4 h-4" />
-            </Link>
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-1.5 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors"
-              aria-label="Toggle dark mode"
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 overflow-y-auto min-h-0">
-        {/* Output Format Section */}
-        <div className="p-5 border-b border-neutral-200 dark:border-neutral-800 sticky top-0 z-10 bg-neutral-50 dark:bg-[#0a0a0a]">
-          <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">Output Format</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { id: 'markdown', label: 'Markdown', icon: Code },
-              { id: 'html', label: 'Document', icon: FileText },
-              { id: 'plain', label: 'Message', icon: AlignLeft },
-            ].map((fmt) => (
-              <label key={fmt.id} className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg border cursor-pointer transition-all ${options.format === fmt.id ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-sm' : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 hover:bg-white dark:hover:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 bg-transparent'}`}>
-                <input type="radio" name="format" value={fmt.id} checked={options.format === fmt.id} onChange={(e) => {
-                  setFormatTouched(true);
-                  setOptions({ ...options, format: e.target.value as any });
-                }} className="sr-only" />
-                <fmt.icon className="w-4 h-4" />
-                <span className="text-[10px] font-medium">{fmt.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Cleaning Rules Section */}
-        <div className="p-5 border-b border-neutral-200 dark:border-neutral-800">
-          <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-3">Cleaning Rules</h3>
-          <div className="space-y-1">
-            {[
-              { id: 'removeHiddenChars', label: 'Remove hidden text', desc: 'Removes invisible text and hidden formatting' },
-              { id: 'fixSpacing', label: 'Fix Spacing', desc: 'Remove double spaces, fix punctuation' },
-              { id: 'removeLinks', label: 'Remove Links/Emails', desc: 'Strip URLs and email addresses' },
-            ].map((rule) => (
-              <label key={rule.id} className="flex items-start justify-between py-2.5 cursor-pointer group">
-                <div className="pr-4">
-                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300 group-hover:text-neutral-900 dark:group-hover:text-white transition-colors">{rule.label}</span>
-                  <p className="text-[11px] text-neutral-500 dark:text-neutral-500 mt-0.5 leading-tight">{rule.desc}</p>
-                </div>
-                <div className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full mt-0.5">
-                  <input 
-                    type="checkbox" 
-                    className="peer sr-only" 
-                    checked={options[rule.id as keyof typeof options] as boolean} 
-                    onChange={e => setOptions({...options, [rule.id]: e.target.checked})} 
-                  />
-                  <div className="h-5 w-9 rounded-full bg-neutral-200 dark:bg-neutral-700 peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500 transition-colors duration-200 ease-in-out"></div>
-                  <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out peer-checked:translate-x-4"></div>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-      </div>
-      
-      <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 shrink-0">
-        <button 
-          onClick={() => setShowShortcuts(true)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
-        >
-          <Keyboard className="w-3.5 h-3.5" />
-          Keyboard Shortcuts
-        </button>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="h-[100dvh] overflow-hidden bg-neutral-50 dark:bg-[#0a0a0a] flex flex-col lg:flex-row font-sans transition-colors duration-200">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-80 bg-neutral-50 dark:bg-[#0a0a0a] border-r border-neutral-200 dark:border-neutral-800 h-full shrink-0 transition-colors duration-200 z-10">
-        {sidebarContent}
-      </aside>
-
-      {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-black/40 z-40 lg:hidden backdrop-blur-sm"
-            />
-            <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-80 bg-neutral-50 dark:bg-[#0a0a0a] shadow-2xl z-50 lg:hidden flex flex-col"
-            >
-              <button 
-                onClick={() => setIsSidebarOpen(false)}
-                className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              {sidebarContent}
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
+    <div className="h-[100dvh] overflow-hidden bg-neutral-50 dark:bg-[#0a0a0a] flex flex-col font-sans transition-colors duration-200">
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0 min-h-0">
-        {/* Mobile Header */}
-        <header className="lg:hidden bg-white dark:bg-[#111111] border-b border-neutral-200 dark:border-neutral-800 px-4 py-3 flex items-center justify-between shrink-0 transition-colors duration-200">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-              <Sparkles className="w-4 h-4 text-white" />
+        {/* Header & Pill Strip */}
+        <header className="bg-white dark:bg-[#111111] border-b border-neutral-200 dark:border-neutral-800 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between shrink-0 transition-colors duration-200 gap-3 sm:gap-0">
+          <div className="flex items-center justify-between sm:justify-start gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Clean Copy</h1>
             </div>
-            <h1 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Clean Copy</h1>
+            <div className="flex items-center gap-2 sm:hidden">
+              {mounted && (
+                <>
+                  <Link
+                    href="/welcome"
+                    className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
+                    aria-label="Help & Welcome"
+                  >
+                    <CircleHelp className="w-5 h-5" />
+                  </Link>
+                  <button
+                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors"
+                    aria-label="Toggle dark mode"
+                  >
+                    {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            {[
+              { id: 'removeHiddenChars', label: 'Remove hidden text' },
+              { id: 'fixSpacing', label: 'Fix spacing' },
+              { id: 'removeLinks', label: 'Remove links' },
+            ].map((rule) => (
+              <button
+                key={rule.id}
+                onClick={() => setOptions(prev => ({ ...prev, [rule.id]: !prev[rule.id as keyof typeof options] }))}
+                className={`px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-medium transition-colors border ${
+                  options[rule.id as keyof typeof options] 
+                    ? 'bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400' 
+                    : 'bg-neutral-50 border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:bg-neutral-800/50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800'
+                }`}
+              >
+                {rule.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
             {mounted && (
               <>
                 <Link
@@ -670,14 +603,30 @@ export default function Page() {
                       </button>
                     )}
                     {outputText && (
-                      <button 
-                        onClick={handleCopy}
-                        className="flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto sm:px-2.5 sm:py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 rounded-md shadow-sm"
-                        title="Copy"
-                      >
-                        {copied ? <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span className="hidden sm:inline ml-1.5">{copied ? 'Copied!' : 'Copy'}</span>
-                      </button>
+                      <div className="relative inline-flex">
+                        <button 
+                          onClick={() => handleCopy()}
+                          className="flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto sm:px-2.5 sm:py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 rounded-l-md shadow-sm"
+                          title="Copy"
+                        >
+                          {copied ? <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span className="hidden sm:inline ml-1.5">{copied ? 'Copied!' : 'Copy'}</span>
+                        </button>
+                        <button
+                          onClick={() => setShowCopyMenu(!showCopyMenu)}
+                          className="flex items-center justify-center px-1.5 text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border-y border-r border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 rounded-r-md shadow-sm border-l-0"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                        {showCopyMenu && (
+                          <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-md shadow-lg z-50 py-1">
+                            <div className="px-3 py-1 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Copy as</div>
+                            <button onClick={() => handleCopy('html')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">Document</button>
+                            <button onClick={() => handleCopy('plain')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">Message</button>
+                            <button onClick={() => handleCopy('markdown')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">Markdown</button>
+                          </div>
+                        )}
+                      </div>
                     )}
                     {outputText && (
                       <div className="relative">
@@ -699,14 +648,6 @@ export default function Page() {
                         )}
                       </div>
                     )}
-                    <button
-                      onClick={() => setIsSidebarOpen(true)}
-                      className="lg:hidden flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto sm:px-2.5 sm:py-1.5 text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 rounded-md shadow-sm"
-                      aria-label="Settings"
-                    >
-                      <Settings2 className="w-4 h-4" />
-                      <span className="hidden sm:inline ml-1.5 text-xs font-medium">Settings</span>
-                    </button>
                   </div>
                 </div>
               
