@@ -1,7 +1,7 @@
 # System Architecture
 
 ## Overview
-Text Cleaner is a modern web application built on Next.js. It leverages client-side React for a highly responsive UI and fast, deterministic string manipulation for text processing. The application is designed to be fast, accessible, and easily extensible.
+Clean Copy is a modern web application built on Next.js. It leverages client-side React for a highly responsive UI and fast, deterministic string manipulation for text processing. The application is designed to be fast, accessible, and easily extensible.
 
 ## Tech Stack
 - **Framework**: Next.js 15 (App Router)

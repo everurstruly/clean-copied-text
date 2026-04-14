@@ -1,6 +1,6 @@
 # Local Development Guide
 
-This guide explains how to set up the Text Cleaner project on your local machine for development.
+This guide explains how to set up the Clean Copy project on your local machine for development.
 
 ## Prerequisites
 - Node.js (v18 or higher)
@@ -11,7 +11,7 @@ This guide explains how to set up the Text Cleaner project on your local machine
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd ai-text-cleaner
+   cd clean-copy
    ```
 
 2. **Install dependencies**

@@ -1,6 +1,6 @@
 # Adding New Features
 
-This guide outlines the process for adding new cleaning rules or features to the Text Cleaner.
+This guide outlines the process for adding new cleaning rules or features to Clean Copy.
 
 ## Adding a New Cleaning Rule
 

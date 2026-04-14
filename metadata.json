@@ -1,5 +1,5 @@
 {
-  "name": "Text Cleaner",
+  "name": "Clean Copy",
   "description": "A smart text sanitization tool that cleans hidden characters, fixes spacing, and formats text for portability.",
   "requestFramePermissions": ["clipboard-read", "clipboard-write"]
 }
