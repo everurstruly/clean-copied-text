@@ -175,6 +175,7 @@ export default function Page() {
     fixSpacing: true,
     removeHiddenChars: true,
   });
+  const [formatTouched, setFormatTouched] = useState(false);
 
   const statuses = [
     "Analyzing text structure...",
@@ -222,7 +223,16 @@ export default function Page() {
 
   const handleCopy = async (overrideFormat?: 'html' | 'plain' | 'markdown') => {
     try {
-      const targetFormat = overrideFormat || options.format;
+      if (overrideFormat) {
+        setOptions(prev => ({ ...prev, format: overrideFormat }));
+        setFormatTouched(true);
+      }
+      
+      let targetFormat = overrideFormat;
+      if (!targetFormat) {
+        targetFormat = (lastPasteWasRich && inputHtml) ? 'html' : 'markdown';
+      }
+      
       const contentToCopy = await getFormattedText(targetFormat);
       
       let html = '';
@@ -255,7 +265,10 @@ export default function Page() {
       console.error('Failed to copy rich text: ', err);
       // Fallback to plain text
       try {
-        const targetFormat = overrideFormat || options.format;
+        let targetFormat = overrideFormat;
+        if (!targetFormat) {
+          targetFormat = (lastPasteWasRich && inputHtml) ? 'html' : 'markdown';
+        }
         const contentToCopy = await getFormattedText(targetFormat);
         await navigator.clipboard.writeText(contentToCopy);
         setCopied(true);
@@ -293,10 +306,12 @@ export default function Page() {
       applyPastedInput(text, normalizedHtml);
 
       // auto-pick the most likely correct output mode
-      setOptions(prev => ({
-        ...prev,
-        format: normalizedHtml ? 'html' : 'markdown',
-      }));
+      if (!formatTouched) {
+        setOptions(prev => ({
+          ...prev,
+          format: normalizedHtml ? 'html' : 'markdown',
+        }));
+      }
     } catch (err: any) {
       // Suppress the console error for expected permission blocks in iframes
       const errMsg = err?.message || '';
@@ -336,11 +351,13 @@ export default function Page() {
       if (shouldKeepHtml) {
         setInputHtml(normalizedHtml);
         setLastPasteWasRich(true);
-        setOptions(prev => ({ ...prev, format: 'html' }));
+        if (!formatTouched) {
+          setOptions(prev => ({ ...prev, format: 'html' }));
+        }
       } else {
         setInputHtml(null);
         setLastPasteWasRich(false);
-        if (isBoxEmpty || isReplacingAll) {
+        if ((isBoxEmpty || isReplacingAll) && !formatTouched) {
           setOptions(prev => ({ ...prev, format: 'markdown' }));
         }
       }
@@ -351,7 +368,7 @@ export default function Page() {
     }
   };
 
-  const handleDownload = async (format: 'txt' | 'md' | 'html' | 'json' = 'txt') => {
+  const handleDownload = async (format: 'txt' | 'md' | 'html' = 'txt') => {
     if (!outputText) return;
     
     let content = outputText;
@@ -364,9 +381,6 @@ export default function Page() {
           ? outputText
           : await marked.parse(outputText, { breaks: false });
       mimeType = 'text/html';
-    } else if (format === 'json') {
-      content = JSON.stringify({ text: outputText }, null, 2);
-      mimeType = 'application/json';
     } else if (format === 'md') {
       mimeType = 'text/markdown';
     }
@@ -422,13 +436,13 @@ export default function Page() {
       changes.push(`Output format changed to ${formatNames[options.format]}`);
     }
     if (options.removeHiddenChars !== lastCleanedOptions.removeHiddenChars) {
-      changes.push(`Hidden Characters removal ${options.removeHiddenChars ? 'enabled' : 'disabled'}`);
+      changes.push(`Remove hidden text ${options.removeHiddenChars ? 'enabled' : 'disabled'}`);
     }
     if (options.fixSpacing !== lastCleanedOptions.fixSpacing) {
-      changes.push(`Fix Spacing ${options.fixSpacing ? 'enabled' : 'disabled'}`);
+      changes.push(`Fix spacing ${options.fixSpacing ? 'enabled' : 'disabled'}`);
     }
     if (options.removeLinks !== lastCleanedOptions.removeLinks) {
-      changes.push(`Remove Links/Emails ${options.removeLinks ? 'enabled' : 'disabled'}`);
+      changes.push(`Remove links ${options.removeLinks ? 'enabled' : 'disabled'}`);
     }
     return changes;
   };
@@ -605,7 +619,7 @@ export default function Page() {
                 onPaste={handleNativePaste}
                 onFocus={() => setIsInputFocused(true)}
                 onBlur={() => setIsInputFocused(false)}
-                placeholder="Paste your messy text here..."
+                placeholder="Paste your text here..."
                 className="flex-1 w-full p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-neutral-700 dark:text-neutral-200 leading-relaxed bg-transparent min-h-0"
               />
               </div>
@@ -697,7 +711,6 @@ export default function Page() {
                             <button onClick={() => handleDownload('txt')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">Text (.txt)</button>
                             <button onClick={() => handleDownload('md')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">Markdown (.md)</button>
                             <button onClick={() => handleDownload('html')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">HTML (.html)</button>
-                            <button onClick={() => handleDownload('json')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">JSON (.json)</button>
                           </div>
                         )}
                       </div>
@@ -728,10 +741,10 @@ export default function Page() {
                         <div className="w-full flex flex-wrap justify-center gap-1.5 mb-4 sm:mb-6 max-h-24 overflow-y-auto">
                           {isReadyToClean ? (
                             <>
-                              <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Format: {options.format}</span>
-                              {options.removeHiddenChars && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove Hidden Chars</span>}
-                              {options.fixSpacing && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Fix Spacing</span>}
-                              {options.removeLinks && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove Links</span>}
+                              <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Format: {options.format === 'html' ? 'Document' : options.format === 'plain' ? 'Message' : 'Markdown'}</span>
+                              {options.removeHiddenChars && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove hidden text</span>}
+                              {options.fixSpacing && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Fix spacing</span>}
+                              {options.removeLinks && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove links</span>}
                             </>
                           ) : (
                             pendingChanges.map((change, i) => (

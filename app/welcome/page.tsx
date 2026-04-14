@@ -59,8 +59,8 @@ export default function LandingPage() {
               letterSpacing: '-0.022em'
             }}
           >
-            Clean copy for <br />
-            your messy text
+            Copied content that <br />
+            works anywhere
           </FadeInHeader>
 
           <FadeIn
@@ -68,7 +68,7 @@ export default function LandingPage() {
             className="flex flex-col items-center"
           >
             <p className="text-base md:text-lg text-neutral-500 leading-relaxed mb-12 max-w-2xl" style={{ letterSpacing: '0' }}>
-              Fix AI messages, copy pastes, and broken formatting in seconds. Turn rough text into something clean, structured, and ready to use.
+              Fix AI messages, rich text pastes, and broken formatting in seconds. Preserve structure when you need it, and strip it when you don&apos;t.
             </p>
 
             <Link href="/">
@@ -125,9 +125,9 @@ export default function LandingPage() {
               className="bg-neutral-50 dark:bg-neutral-900/30 rounded-[2.5rem] p-12 flex flex-col items-center text-center overflow-hidden h-[520px]"
             >
               <span className="text-[11px] font-bold uppercase tracking-[0.2em] mb-4 text-indigo-600">Precision</span>
-              <h2 className="text-[32px] font-semibold mb-4 tracking-[-0.022em] leading-tight">Deep Cleaning</h2>
+              <h2 className="text-[32px] font-semibold mb-4 tracking-[-0.022em] leading-tight">Smart Paste</h2>
               <p className="text-neutral-500 dark:text-neutral-400 leading-relaxed mb-10 max-w-md">
-                Strip away zero-width spaces, BOMs, and invisible formatting artifacts that break your code and documents.
+                Automatically detects rich text and preserves formatting, or cleanly strips it down to plain text while removing invisible artifacts.
               </p>
               <div className="mt-auto w-full max-w-[320px] bg-white dark:bg-black rounded-t-3xl shadow-lg border border-neutral-100 dark:border-neutral-900 p-8 h-52 relative">
                 <div className="space-y-3">
@@ -146,14 +146,14 @@ export default function LandingPage() {
               className="bg-neutral-50 dark:bg-neutral-900/30 rounded-[2.5rem] p-12 flex flex-col items-center text-center overflow-hidden h-[520px]"
             >
               <span className="text-[11px] font-bold uppercase tracking-[0.2em] mb-4 text-indigo-600">Formatting</span>
-              <h2 className="text-[32px] font-semibold mb-4 tracking-[-0.022em] leading-tight">Smart Formatting</h2>
+              <h2 className="text-[32px] font-semibold mb-4 tracking-[-0.022em] leading-tight">Universal Copy</h2>
               <p className="text-neutral-500 dark:text-neutral-400 leading-relaxed mb-10 max-w-md">
-                Instantly structure your text into perfectly formatted Markdown, HTML, or plain text. Ready to paste anywhere.
+                Copy as a Document, Message, or Markdown. Your clipboard is always ready for the next app.
               </p>
               <div className="mt-auto w-full max-w-md bg-white dark:bg-black rounded-t-3xl shadow-lg border border-neutral-100 dark:border-neutral-900 h-52 p-8 flex flex-col items-center justify-center relative gap-6">
                 <div className="flex gap-3">
                   <div className="px-3 py-1.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 text-[10px] font-bold text-neutral-400 dark:text-neutral-600">.MD</div>
-                  <div className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-900 text-[10px] font-bold text-indigo-600">.JSON</div>
+                  <div className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-900 text-[10px] font-bold text-indigo-600">.HTML</div>
                   <div className="px-3 py-1.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 text-[10px] font-bold text-neutral-400 dark:text-neutral-600">.TXT</div>
                 </div>
                 <div className="w-12 h-1 bg-neutral-100 dark:bg-neutral-900 rounded-full overflow-hidden">
