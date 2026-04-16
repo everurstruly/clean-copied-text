@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings2, Sparkles, Copy, Check, X, FileText, Code, AlignLeft, Moon, Sun, RefreshCw, GripVertical, GripHorizontal, ChevronsUpDown, Download, Keyboard, Command, ClipboardPaste, Undo2, Redo2, CircleHelp, ChevronDown } from 'lucide-react';
+import { Settings2, Sparkles, Copy, Check, X, FileText, Code, AlignLeft, Moon, Sun, RefreshCw, GripVertical, GripHorizontal, ChevronsUpDown, Download, Keyboard, Command, ClipboardPaste, Undo2, Redo2, CircleHelp } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { cleanText } from '@/lib/cleaner';
@@ -16,15 +16,41 @@ import { marked } from 'marked';
 function stripHtml(html: string) {
   const div = document.createElement('div');
   div.innerHTML = html;
-  return div.innerText || '';
+  const text = div.textContent || '';
+  return text
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim();
 }
 
-function normalizePastedHtml(html: string) {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
+function normalizePastedHtml(html: string): string | null {
+  if (!html) return null;
+  
+  // Strip fragment markers
+  const cleanHtml = html
+    .replace(/<!--StartFragment-->/g, '')
+    .replace(/<!--EndFragment-->/g, '');
+  
+  const doc = new DOMParser().parseFromString(cleanHtml, 'text/html');
   const body = doc.body;
 
+  // 1. Remove non-visible/junk elements first
   body.querySelectorAll('script, style, meta, link').forEach((el) => el.remove());
 
+  // 2. Check if it's actually "rich" before we spend time cleaning it
+  // We consider it rich if it has formatting tags OR multiple structural tags
+  const richTags = ['b', 'strong', 'i', 'em', 'u', 's', 'a', 'table', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'img', 'code', 'pre', 'blockquote', 'br', 'hr', 'sub', 'sup'];
+  const hasRichTags = body.querySelectorAll(richTags.join(',')).length > 0;
+  
+  // Multiple structural tags usually mean it's a multi-line document or list
+  const structuralTags = body.querySelectorAll('p, div, li, tr, h1, h2, h3, h4, h5, h6');
+  const hasMultipleStructural = structuralTags.length > 1;
+
+  if (!hasRichTags && !hasMultipleStructural) {
+    return null;
+  }
+
+  // 3. Clean up the remaining elements
   body.querySelectorAll<HTMLElement>('*').forEach((el) => {
     const style = el.getAttribute('style');
     
@@ -69,7 +95,6 @@ export default function Page() {
   const [isCleaning, setIsCleaning] = useState(false);
   const [copied, setCopied] = useState(false);
   const [pasteError, setPasteError] = useState(false);
-  const [showCopyMenu, setShowCopyMenu] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -170,12 +195,10 @@ export default function Page() {
   }, []);
 
   const [options, setOptions] = useState({
-    format: 'markdown' as 'markdown' | 'html' | 'plain',
     removeLinks: false,
     fixSpacing: true,
     removeHiddenChars: true,
   });
-  const [formatTouched, setFormatTouched] = useState(false);
 
   const statuses = [
     "Analyzing text structure...",
@@ -193,16 +216,8 @@ export default function Page() {
     setLastCleanedInput(inputText);
 
     try {
-      let result = '';
-
-      // preserve rich structure for rich pastes when html output is selected
-      if (options.format === 'html' && inputHtml && lastPasteWasRich) {
-        result = inputHtml;
-      } else {
-        result = await cleanText(inputText, options);
-      }
-
-      setOutputText(result);
+      const result = await cleanText(inputText, options);
+      setOutputText(result.trim());
     } catch (error) {
       console.error(error);
       showToast('Failed to clean text. Please try again.');
@@ -211,44 +226,25 @@ export default function Page() {
     }
   };
 
-  const getFormattedText = async (targetFormat: 'html' | 'plain' | 'markdown') => {
-    if (targetFormat === options.format) {
-      return outputText;
-    }
-    if (targetFormat === 'html' && inputHtml && lastPasteWasRich) {
-      return inputHtml;
-    }
-    return await cleanText(inputText, { ...options, format: targetFormat });
-  };
-
-  const handleCopy = async (overrideFormat?: 'html' | 'plain' | 'markdown') => {
+  const handleCopy = async () => {
     try {
-      if (overrideFormat) {
-        setOptions(prev => ({ ...prev, format: overrideFormat }));
-        setFormatTouched(true);
-      }
-      
-      let targetFormat = overrideFormat;
-      if (!targetFormat) {
-        targetFormat = (lastPasteWasRich && inputHtml) ? 'html' : 'markdown';
-      }
-      
-      const contentToCopy = await getFormattedText(targetFormat);
-      
       let html = '';
       let text = '';
 
-      if (targetFormat === 'html') {
-        html = contentToCopy;
+      if (lastPasteWasRich && inputHtml) {
+        // preserve original rich structure
+        html = inputHtml;
+
         const temp = document.createElement('div');
         temp.innerHTML = html;
-        text = temp.innerText;
-      } else if (targetFormat === 'markdown') {
-        text = contentToCopy;
-        html = await marked.parse(contentToCopy, { breaks: false });
+        text = (temp.textContent || '')
+          .replace(/\n{3,}/g, '\n\n')
+          .replace(/[ \t]+\n/g, '\n')
+          .trim();
       } else {
-        text = contentToCopy;
-        html = text.replace(/\n/g, '<br>');
+        // cleaned text path
+        text = outputText;
+        html = await marked.parse(text, { breaks: false });
       }
 
       await navigator.clipboard.write([
@@ -260,20 +256,12 @@ export default function Page() {
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      setShowCopyMenu(false);
     } catch (err) {
-      console.error('Failed to copy rich text: ', err);
-      // Fallback to plain text
+      console.error(err);
       try {
-        let targetFormat = overrideFormat;
-        if (!targetFormat) {
-          targetFormat = (lastPasteWasRich && inputHtml) ? 'html' : 'markdown';
-        }
-        const contentToCopy = await getFormattedText(targetFormat);
-        await navigator.clipboard.writeText(contentToCopy);
+        await navigator.clipboard.writeText(outputText);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-        setShowCopyMenu(false);
       } catch (fallbackErr) {
         console.error('Failed to copy plain text fallback: ', fallbackErr);
         showToast('Failed to copy. Your browser might be blocking it.');
@@ -304,14 +292,6 @@ export default function Page() {
       if (!text) text = normalizedHtml ? stripHtml(normalizedHtml) : '';
 
       applyPastedInput(text, normalizedHtml);
-
-      // auto-pick the most likely correct output mode
-      if (!formatTouched) {
-        setOptions(prev => ({
-          ...prev,
-          format: normalizedHtml ? 'html' : 'markdown',
-        }));
-      }
     } catch (err: any) {
       // Suppress the console error for expected permission blocks in iframes
       const errMsg = err?.message || '';
@@ -351,15 +331,9 @@ export default function Page() {
       if (shouldKeepHtml) {
         setInputHtml(normalizedHtml);
         setLastPasteWasRich(true);
-        if (!formatTouched) {
-          setOptions(prev => ({ ...prev, format: 'html' }));
-        }
       } else {
         setInputHtml(null);
         setLastPasteWasRich(false);
-        if ((isBoxEmpty || isReplacingAll) && !formatTouched) {
-          setOptions(prev => ({ ...prev, format: 'markdown' }));
-        }
       }
       
       setTimeout(() => {
@@ -376,9 +350,8 @@ export default function Page() {
     let extension = format;
 
     if (format === 'html') {
-      content =
-        options.format === 'html'
-          ? outputText
+      content = (lastPasteWasRich && inputHtml)
+          ? inputHtml
           : await marked.parse(outputText, { breaks: false });
       mimeType = 'text/html';
     } else if (format === 'md') {
@@ -425,16 +398,13 @@ export default function Page() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputText, outputText, options, isDesktop]);
 
   const getPendingChanges = () => {
     if (!lastCleanedOptions) return [];
     const changes = [];
     if (inputText !== lastCleanedInput) changes.push("Original text was edited");
-    if (options.format !== lastCleanedOptions.format) {
-      const formatNames = { markdown: 'Markdown', html: 'Document', plain: 'Message' };
-      changes.push(`Output format changed to ${formatNames[options.format]}`);
-    }
     if (options.removeHiddenChars !== lastCleanedOptions.removeHiddenChars) {
       changes.push(`Remove hidden text ${options.removeHiddenChars ? 'enabled' : 'disabled'}`);
     }
@@ -499,8 +469,8 @@ export default function Page() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0 min-h-0">
         {/* Header & Pill Strip */}
-        <header className="bg-white dark:bg-[#111111] border-b border-neutral-200 dark:border-neutral-800 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between shrink-0 transition-colors duration-200 gap-3 sm:gap-0">
-          <div className="flex items-center justify-between sm:justify-start gap-3">
+        <header className="bg-white dark:bg-[#111111] border-b border-neutral-200 dark:border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between shrink-0 transition-colors duration-200">
+          <div className="flex items-center justify-between px-4 py-3 sm:py-0 sm:h-16 shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
                 <Sparkles className="w-4 h-4 text-white" />
@@ -529,7 +499,7 @@ export default function Page() {
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 flex-wrap">
+          <div className="flex items-center justify-center gap-2 flex-wrap px-4 py-2.5 border-t border-neutral-100 dark:border-neutral-900 sm:border-t-0 sm:px-0 sm:py-0 bg-neutral-50/30 dark:bg-white/[0.02] sm:bg-transparent">
             {[
               { id: 'removeHiddenChars', label: 'Remove hidden text' },
               { id: 'fixSpacing', label: 'Fix spacing' },
@@ -549,7 +519,7 @@ export default function Page() {
             ))}
           </div>
 
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2 px-4 h-16">
             {mounted && (
               <>
                 <Link
@@ -674,26 +644,12 @@ export default function Page() {
                       <div className="relative inline-flex">
                         <button 
                           onClick={() => handleCopy()}
-                          className="flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto sm:px-2.5 sm:py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 rounded-l-md shadow-sm"
+                          className="flex items-center justify-center px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 rounded-md shadow-sm"
                           title="Copy"
                         >
                           {copied ? <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span className="hidden sm:inline ml-1.5">{copied ? 'Copied!' : 'Copy'}</span>
+                          <span className="ml-1.5">{copied ? 'Copied!' : 'Copy'}</span>
                         </button>
-                        <button
-                          onClick={() => setShowCopyMenu(!showCopyMenu)}
-                          className="flex items-center justify-center px-1.5 text-neutral-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-white dark:bg-[#1a1a1a] border-y border-r border-neutral-200 dark:border-neutral-700 hover:border-blue-200 dark:hover:border-blue-800 rounded-r-md shadow-sm border-l-0"
-                        >
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                        {showCopyMenu && (
-                          <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-[#1a1a1a] border border-neutral-200 dark:border-neutral-800 rounded-md shadow-lg z-50 py-1">
-                            <div className="px-3 py-1 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">Copy as</div>
-                            <button onClick={() => handleCopy('html')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">Document</button>
-                            <button onClick={() => handleCopy('plain')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">Message</button>
-                            <button onClick={() => handleCopy('markdown')} className="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">Markdown</button>
-                          </div>
-                        )}
                       </div>
                     )}
                     {outputText && (
@@ -738,10 +694,9 @@ export default function Page() {
                           {isReadyToClean ? 'The following settings will be applied:' : 'You have modified the following settings since your last clean:'}
                         </p>
                         
-                        <div className="w-full flex flex-wrap justify-center gap-1.5 mb-4 sm:mb-6 max-h-24 overflow-y-auto">
+                        <div className="w-full flex flex-wrap justify-center gap-1.5 mb-4 sm:mb-6">
                           {isReadyToClean ? (
                             <>
-                              <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Format: {options.format === 'html' ? 'Document' : options.format === 'plain' ? 'Message' : 'Markdown'}</span>
                               {options.removeHiddenChars && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove hidden text</span>}
                               {options.fixSpacing && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Fix spacing</span>}
                               {options.removeLinks && <span className="inline-flex items-center px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">Remove links</span>}
@@ -801,8 +756,8 @@ export default function Page() {
                 ) : viewMode === 'preview' ? (
                   <div className={`flex-1 w-full p-4 overflow-auto bg-transparent ${(hasUnappliedChanges || isReadyToClean) ? 'opacity-50' : ''} transition-opacity duration-300 min-h-0`}>
                     <div className="prose prose-sm dark:prose-invert max-w-none [&_*]:max-w-full">
-                      {options.format === 'html' ? (
-                        <div className="clean-copy-html-preview" dangerouslySetInnerHTML={{ __html: outputText || 'Cleaned text will appear here...' }} />
+                      {lastPasteWasRich && inputHtml ? (
+                        <div className="clean-copy-html-preview" dangerouslySetInnerHTML={{ __html: inputHtml }} />
                       ) : (
                         <Markdown remarkPlugins={[remarkBreaks]}>{outputText || 'Cleaned text will appear here...'}</Markdown>
                       )}

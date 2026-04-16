@@ -1,26 +1,10 @@
 import { marked } from 'marked';
 
-type Format = 'markdown' | 'html' | 'plain';
-
 type CleanOptions = {
-  format?: Format;
   removeLinks?: boolean;
   fixSpacing?: boolean;
   removeHiddenChars?: boolean;
 };
-
-function toPlainText(md: string): string {
-  return md
-    // headings
-    .replace(/^#{1,6}\s+/gm, '')
-    // bold/italic/code
-    .replace(/[*_~`]/g, '')
-    // links [text](url) → text
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // collapse spaces again
-    .replace(/ {2,}/g, ' ')
-    .trim();
-}
 
 export async function cleanText(
   input: string,
@@ -29,7 +13,6 @@ export async function cleanText(
   if (!input) return '';
 
   const {
-    format = 'markdown',
     removeLinks = false,
     fixSpacing = true,
     removeHiddenChars = true,
@@ -100,16 +83,5 @@ export async function cleanText(
     result = result.replace(new RegExp(`__CODE_BLOCK_${i}__`, 'g'), block);
   });
 
-  result = result.trim();
-
-  // 8. Output formats
-  if (format === 'html') {
-    return await marked.parse(result, { breaks: false });
-  }
-
-  if (format === 'plain') {
-    return toPlainText(result);
-  }
-
-  return result;
+  return result.trim();
 }
